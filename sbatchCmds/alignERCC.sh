@@ -1,12 +1,12 @@
 #!/bin/sh
 #SBATCH --account=gdkendalllab
 #SBATCH --array=0-17
-#SBATCH --error=slurmOut/align-%j.txt
-#SBATCH --output=slurmOut/align-%j.txt
+#SBATCH --error=slurmOut/alignERCC-%j.txt
+#SBATCH --output=slurmOut/alignERCC-%j.txt
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
-#SBATCH --job-name align
+#SBATCH --job-name alignERCC
 #SBATCH --wait
 #SBATCH --mail-user=matthew.cannon@nationwidechildrens.org
 #SBATCH --mail-type=FAIL,REQUEUE,TIME_LIMIT_80
@@ -56,7 +56,7 @@ R2=$(ls ${inputPath}/${baseName}/*R2*fastq.gz | \
         perl -pe 's/,$//')
 
 hisat2 \
-  -x /home/gdkendalllab/lab/references/hisat2/danRer11_plusERCC \
+  -x misc/ERCC_sequences \
   -1 ${R1} \
   -2 ${R2} \
   -k 1 \
@@ -66,6 +66,6 @@ hisat2 \
   samtools sort -@ 4 -O BAM | \
   samtools markdup -@ 4 -r - - | \
   samtools view -@ 4 -f 2 -b - \
-    > output/aligned/${baseName}.bam
+    > output/ERCC/aligned/${baseName}.bam
 
-samtools index output/aligned/${baseName}.bam
+samtools index output/ERCC/aligned/${baseName}.bam
