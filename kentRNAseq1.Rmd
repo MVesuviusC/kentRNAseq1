@@ -84,7 +84,8 @@ for directoryName in \
   output/figures/ERCC \
   output/ERCC/aligned \
   output/geneCounts \
-  output/counts 
+  output/counts \
+  output/motif/homerOut
 do
   if [ ! -d ${directoryName} ]
   then
@@ -178,15 +179,13 @@ for (i in 1:nrow(to_plot)) {
     dev.off()
 }
 
-input_reads <- read_tsv(list.files(
-    path = "output/fastqc",
-    recursive = TRUE,
-    pattern = "Basic_Statistics.txt",
-    full.names = TRUE
-),
-id = "File",
-show_col_types = FALSE
-) %>%
+input_reads <- read_tsv(list.files(path = "output/fastqc",
+                                   recursive = TRUE,
+                                   pattern = "Basic_Statistics.txt",
+                                   full.names = TRUE),
+                        id = "File",
+                        show_col_types = FALSE
+    ) %>%
     filter(`#Measure` == "Total Sequences") %>%
     select(-`#Measure`) %>%
     mutate(
@@ -307,7 +306,7 @@ ggsave("output/figures/geneAssignmentPlot.png",
 
 ## Plot reads lost along the way 
 ```{r plotReadsLostAlongTheWay, eval=TRUE}
-input_reads %>%
+reads_latw <- input_reads %>%
     filter(Read == "R1") %>%
     group_by(Sample) %>%
     summarize(Sequenced_Reads = sum(Reads)) %>%
@@ -330,8 +329,32 @@ input_reads %>%
         "Sequenced_Reads",
         "Aligned_Reads",
         "Genic_Reads"
-    )) %>%
-    ggplot(aes(x = Sample, y = Reads / 1000000, fill = Stage)) +
+    ))
+
+reads_latw %>%
+    pivot_wider(names_from = Stage, values_from = Reads) %>%
+    mutate(Condition = Sample %>%
+            str_replace("her3_38aa.+", "Her3 38aa knockout") %>%
+            str_replace("her3-MO.+", "Her3 morpholino") %>%
+            str_replace("mm-MO.+", "Mismatched morpholino control") %>%
+            str_replace("WIK.+", "WIK control"),
+           Collection_Time = str_remove(Sample, ".+_")) %>%
+    arrange(Condition, Collection_Time) %>%
+    select(Sample,
+           Condition,
+           Collection_Time,
+           Sequenced_Reads,
+           Aligned_Reads,
+           Genic_Reads) %>%
+    rename(Sample_Name = Sample) %>%
+    rename_with(~ str_replace(.x, "_", " ")) %>%
+    gt() %>%
+    fmt_number(columns = c("Sequenced Reads", "Aligned Reads", "Genic Reads"),
+               decimals = 0,
+               sep_mark = ",") %>%
+    gtsave("output/figures/sampleReadCounts.png")
+
+ggplot(reads_latw, aes(x = Sample, y = Reads / 1000000, fill = Stage)) +
     geom_col(position = "dodge") +
     ylab("Reads (in millions)") +
     xlab("") +
@@ -342,8 +365,7 @@ ggsave("output/figures/ReadsLostAlongTheWay.png",
     width = 3000,
     height = 2000,
     units = "px",
-    device = "png"
-)
+    device = "png")
 ```
 
 
@@ -667,6 +689,52 @@ for (i in seq_len(length(group_list) - 1)) {
 }
 ```
 
+```{r plotDECounts, eval=TRUE}
+combined_data <- NULL
+
+for (in_file in list.files(path = "output/edgeROut",
+                           pattern = "^edgeR_.+",
+                           full.names = TRUE)) {
+    combined_data <- read_tsv(in_file,
+                              col_select = c("signif", "logFC"),
+                              show_col_types = FALSE) %>%
+        mutate(group_1 = str_remove(in_file, ".+edgeR_") %>%
+                            str_remove(".txt") %>%
+                            str_replace("hpf.+", "hpf"),
+                group_2 = str_remove(in_file, ".+edgeR_") %>%
+                            str_remove(".txt") %>%
+                            str_remove(".+hpf_")) %>%
+        group_by(group_1, group_2) %>%
+        summarize(n = n(),
+                  n_de = sum(signif == "TRUE"),
+                  de_label = paste(sum(signif == TRUE & logFC > 0),
+                                   " / ", 
+                                   sum(signif == TRUE & logFC < 0),
+                                   sep = ""),
+                  .groups = "drop") %>%
+        bind_rows(combined_data)
+}
+
+ggplot(combined_data,
+       aes(x = group_1,
+           y = group_2,
+           label = de_label,
+           fill = n_de)) +
+    geom_tile() +
+    geom_label(fill = "white", label.size = NA) +
+    labs(x = "",
+         y = "",
+         title = "Number of differentially expressed genes\n(up-regulated/down-regulated)",
+         fill = "DE genes") +
+    scale_fill_gradient(low = "#fcfbfd", high = "#4a1486")
+
+ggsave("output/figures/deTilePlot.png",
+       width = 2800,
+       height = 2400,
+       units = "px",
+       device = "png")
+```
+
 ### ERCC spike-in analysis
 
 ```{r ercc, eval=TRUE}
@@ -982,7 +1050,7 @@ png("output/figures/heatmap_24hpf.png",
 dev.off()
 ```
 
-```{r vennDiagrams, eval=FALSE}
+```{r vennDiagrams, eval=TRUE}
 in_files <- c("output/edgeROut/edgeR_her3_38aa_72hpf_WIK_72hpf.txt",
               "output/edgeROut/edgeR_her3_38aa_24hpf_WIK_24hpf.txt",
               "output/edgeROut/edgeR_her3-MO_24hpf_WIK_24hpf.txt",
@@ -1020,15 +1088,11 @@ ggvenn::ggvenn(signif_list,
                set_name_size = 4)
 
 dev.off()
-
-# ggsave("output/figures/signifGeneVennDiagrams.png",
-#     width = 15,
-#     height = 25)
 ```
 
 
 
-```{r linePlotsByGroup, eval=TRUE}
+```{r linePlotsByGroup, eval=FALSE}
 comparisons <- list(mutant_24h_vs_72h =         c("her3_38aa_24hpf_WIK_24hpf",
                                                   "her3_38aa_72hpf_WIK_72hpf",
                                                   "Mutant 24h",
@@ -1160,10 +1224,40 @@ for (comparison in comparisons) {
                  sep = ""),
         width = 15,
         height = 25)
-
 }
 ```
 
+## Make lists of the differentially expressed genes for each comparison to use in motif analysis
+```{r listDeGenes, eval=TRUE}
+for (in_file in list.files(path = "output/edgeROut/", pattern = "edgeR.+txt")){
+    read_tsv(paste("output/edgeROut/", in_file, sep = "")) %>%
+        select(Gene, signif) %>%
+        filter(signif == "TRUE") %>%
+        select(Gene) %>%
+        write_tsv(paste("output/edgeROut/",
+                        str_replace(in_file, "edgeR", "listDeGenes"),
+                        sep = ""))
+}
+```
+
+## Motif analysis using homer
+
+### Run Homer
+```{bash runHomer, eval=TRUE}
+sbatch sbatchCmds/homer.sh
+```
+
+### Gather html files from home outputs
+```{bash gatherHomer, eval=TRUE}
+for dir in output/motif/homerOut/*/
+do
+    nameStub=${dir%/}
+    nameStub=${nameStub##*/}
+    echo $nameStub
+    cp $dir/knownResults.html output/motif/homerOut/${nameStub}_knownResults.html
+    cp $dir/homerResults.html output/motif/homerOut/${nameStub}_homerResults.html
+done
+```
 
 # Conclusions
 
