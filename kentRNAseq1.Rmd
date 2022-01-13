@@ -1,8 +1,9 @@
 ---
-title: "Matt Kent RNAseq experiment"
+title: "Matt Kent RNAseq experiment 1"
 author: "Matt Cannon"
 date: "10-15-2021"
-output: html_document
+output: html_document:
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
@@ -11,55 +12,43 @@ knitr::opts_chunk$set(
     cache = TRUE,
     fig.height = 10,
     fig.width = 20,
-    dpi = 300,
-    bootstrap.show.code = FALSE,
-    bootstrap.show.output = FALSE,
-    bootstrap.show.message = FALSE
+    dpi = 300
 )
 ```
 
 
 
-# RNAseq analysis of 
+# RNAseq analysis of Her3 knockout and morpholino zebrafish samples
 
 ## Goals:
 
-placeholder
+This experiment aims to characterize the effects of Her3 knockout in zebrafish.
+
+To do this, we employ a Her3 mutant created by crispr modification of the Her3 sequence that leads to a truncated 38 amino acid protein.
+
+We also are using a morpholino targeted to the Her3 mRNA to prevent protein translation.
+
+We are testing these effects at both 24 hours and 72 hours post fertilization.
 
 ## Samples:
 
-placeholder
+There are six groups with samples collected at either 24hpf or 72hpf. RNA from the entire embryo was collected for all samples.
 
-three 24hpf WIK samples had ERCC 1, and all the others had ERCC 2
+-   Control WIK 24hpf samples (n = 3)
+-   Her3 38aa knockout 24hpf samples (n = 3)
+-   Her3 morpholino 24hpf samples (n = 3)
+-   Her3 control mismatch morpholino 24hpf samples (n = 3)
+-   Control WIK 72hpf samples (n = 3)
+-   Her3 38aa knockout 72hpf samples (n = 3)
 
-include elife data for 24 hour and 72 hour
+ERCC spike-in:
+24hpf WIK samples had ERCC 1, and all the others had ERCC 2 spike-in controls added to facilitate evaluation of dynamic range and sensitivity of differential expression analysis.
+
+RNAseq data were generated on an Illumina NovaSeq to creat 151bp paired-end reads.
 
 ## Approach
 
-placeholder
-to do:
-
-Filter DE gene list based on ERCC spike ins
-
-IPA
--   24 hr - wik vs her3 mut
--   24 hr - wik her3 scrMO vs wik her3 MO
--   72 hr - wik vs her3 mut
-
-change logFC cutoff to 1 to try
-
-Motif analysis
--   same groups
-
-Plots for each comparison
-    x = time point
-    y = gene expr.
-    group = gene - line connecting points
-    color or facet by gene type (neural, muscle, etc)
-
-Heatmaps
-
-Table of total reads, % aligned, % in genes, # up/down regulated genes
+To analyze these samples, we aligned with HiSat2 and counted the number of reads mapping to each gene using featureCounts. We used EdgeR to test for differential expression between the groups. For motif analysis we used Homer. For most statistical analyses and plotting, we used R and and ggplot2. To do pathway analysis we use the Inginuity Pathway Analysis software.
 
 # Workflow
 
@@ -105,7 +94,6 @@ do
   perl ~/scripts/splitFastqcData.pl -i ${inFile}
 done
 ```
-
 
 ### Plot Fastqc output for all samples
 ```{r plotFastqc, eval=TRUE}
@@ -216,7 +204,11 @@ ggsave("output/figures/InputReads.png",
 
 ## Align to zebrafish genome
 Reference includes the ERCC reference RNA sequences
-
+```{r, echo=FALSE, cache=FALSE}
+knitr::read_chunk("sbatchCmds/align.sh", labels = "alignCode")
+```
+```{bash alignCode, eval=FALSE, cache=FALSE}
+```
 ```{bash align, eval=FALSE}
 sbatch sbatchCmds/align.sh
 ```
@@ -259,6 +251,11 @@ ggsave("output/figures/PercentAligned.png",
 
 ## Count number of reads per gene
 Annotation includes the ERCC references
+```{r, echo=FALSE, cache=FALSE}
+knitr::read_chunk("sbatchCmds/countGenes.sh", labels = "countGenesCode")
+```
+```{bash countGenesCode, eval=FALSE, cache=FALSE}
+```
 ```{bash countGenes, dependson='align', eval=FALSE}
 sbatch sbatchCmds/countGenes.sh
 ```
@@ -286,7 +283,6 @@ genic_reads <- read_tsv("output/geneCounts/combined.txt.summary",
         str_replace("Unassigned_Ambiguity", "Multiple Features")) %>%
     group_by(Sample) %>%
     mutate(Percent_Reads = Reads / sum(Reads) * 100)
-
 
 ggplot(genic_reads, aes(x = Sample, y = Percent_Reads, fill = Status)) +
     geom_col() +
@@ -770,13 +766,6 @@ gene_data <- read_tsv("output/geneCounts/combined.txt",
     calcNormFactors(.) %>%
     estimateDisp(., model.matrix(~ c(1, 1, 1, 2, 2, 2)))
 
-# kept_df <- filterByExpr(gene_data, min.count = 0.1)
-
-# gene_data <- gene_data[kept_df, keep.lib.sizes = FALSE] %>%
-#     calcNormFactors(.) %>%
-#     estimateDisp(.,  model.matrix(~ c(1, 1, 1, 2, 2, 2)))
-
-
 gene_expr <- exactTest(gene_data) %>%
     topTags(., n = Inf) %>%
     as.data.frame() %>%
@@ -1091,7 +1080,8 @@ dev.off()
 ```
 
 
-
+## Attempt to make plots showing differences in expression between 24 and 72 hpf
+This produced plots that were not easy to interpret and so was not further utilized.
 ```{r linePlotsByGroup, eval=FALSE}
 comparisons <- list(mutant_24h_vs_72h =         c("her3_38aa_24hpf_WIK_24hpf",
                                                   "her3_38aa_72hpf_WIK_72hpf",
