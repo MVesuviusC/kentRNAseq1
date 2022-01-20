@@ -579,7 +579,7 @@ for (i in seq_len(length(group_list) - 1)) {
         picked_genes <- summarized_data %>%
             ungroup() %>%
             arrange(abs(logFC) * -1) %>%
-            filter(grepl("^si:|^zgc:|^CABZ0|^C[uU][0-9]|^C[rR][0-9]|^Zgc:|^F[pP][0-9]|^BX[0-9]|^CT[0-9]",
+            filter(grepl("^si:|^zgc:|^CABZ0|^C[uU][0-9]|^C[rR][0-9]|^Zgc:|^F[pP][0-9]|^BX[0-9]|^CT[0-9]|^FO[0-9]|^L0[0-9]",
                          gene_name) == FALSE) %>%
             slice_head(n = 40) %>%
             mutate(gene_name = str_to_title(gene_name))
