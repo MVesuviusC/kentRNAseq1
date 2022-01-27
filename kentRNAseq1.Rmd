@@ -417,7 +417,7 @@ group_table <- tibble(samples = list.files(path = "output/aligned",
     mutate(samples = str_remove(samples, "output/aligned/") %>%
         str_remove(".bam")) %>%
     mutate(group = str_replace(samples, "_[123]_", "_"))
-
+ 
 group_list <- group_table %>%
     select(group) %>%
     distinct() %>%
@@ -582,10 +582,12 @@ for (i in seq_len(length(group_list) - 1)) {
             filter(grepl("^si:|^zgc:|^CABZ0|^C[uU][0-9]|^C[rR][0-9]|^Zgc:|^F[pP][0-9]|^BX[0-9]|^CT[0-9]|^FO[0-9]|^L0[0-9]",
                          gene_name) == FALSE) %>%
             slice_head(n = 40) %>%
-            mutate(gene_name = str_to_title(gene_name))
+            mutate(gene_name = str_to_title(gene_name)) %>%
+            select(logFC, PValue, gene_name) %>%
+            distinct(gene_name, .keep_all = TRUE)
 
         volcano_plot <- ggplot(summarized_data,
-                               aes(x = logFC,
+                               aes(x = logFC * -1, # reverse x axis 
                                    y = -log10(PValue),
                                    color = signif)) +
             geom_point(alpha = 0.5) +
@@ -596,15 +598,15 @@ for (i in seq_len(length(group_list) - 1)) {
                           group_2,
                           sep = "")) +
             ggrepel::geom_text_repel(data = picked_genes,
-                                     aes(x = logFC,
+                                     aes(x = logFC * -1, # reverse x axis
                                          y = -log10(PValue),
                                          label = gene_name),
                                      color = "black",
                                      min.segment.length = 0,
                                      arrow = arrow(length = unit(0.01, "npc")),
-                                     size = 1.6,
+                                     size = 2.8,
                                      max.overlaps = 20,
-                                     force_pull = 0.1) +
+                                     force_pull = 0.01) +
             scale_color_brewer(type = "qual",
                             name = "Significant",
                             palette = "Set2") +
@@ -711,7 +713,8 @@ ggplot(combined_data,
          y = "",
          title = "Number of differentially expressed genes\n(up-regulated/down-regulated)",
          fill = "DE genes") +
-    scale_fill_gradient(low = "#fcfbfd", high = "#4a1486")
+    scale_fill_gradient(low = "#fcfbfd", high = "#4a1486") +
+    theme(text = element_text(size = 20))
 
 ggsave("output/figures/deTilePlot.png",
        width = 2800,
@@ -738,7 +741,7 @@ tile_plot_nomo <- combined_data %>%
             title = "Number of differentially expressed genes\n(up-regulated/down-regulated)",
             fill = "DE genes") +
         scale_fill_gradient(low = "#fcfbfd", high = "#4a1486") +
-        theme(text = element_text(size = 7))
+        theme(text = element_text(size = 10))
 
 ggsave("output/figures/deTilePlot_noMo.png",
        plot = tile_plot_nomo,
@@ -868,7 +871,7 @@ gene_expr %>%
 
 ## PCA analysis
 I also make heatmaps and assemble plots for the paper using grid.
-```{r pca, dependson=c('edgeR', 'ercc'), eval=TRUE}
+```{r pca, dependson=c('edgeR', 'ercc', 'plotDECounts'), eval=TRUE}
 group_table <- tibble(samples = list.files(path = "output/aligned",
                                            pattern = ".bam$")) %>%
     mutate(samples = str_remove(samples, "output/aligned/") %>%
@@ -955,12 +958,12 @@ names(plot_colors) <- levels(prin_comps$group)
 pca_all <- ggplot(prin_comps, aes(x = PC1,
                                   y = PC2,
                                   color = group)) +
-    geom_point() +
+    geom_point(size = 3) +
     ggtitle("PCA Plot for all Samples") +
     ggrepel::geom_text_repel(aes(label = samples %>%
                                             str_replace_all("_", " ") %>%
                                             str_replace("her3", "Her3")),
-                             size = 2) +
+                             size = 3) +
     xlab(paste("PC1 (",
                round(variance[1], 1),
                "%)",
@@ -1005,9 +1008,9 @@ for (timepoint in c("24hpf", "72hpf")) {
                                         levels()]
 
     sub_plot <- ggplot(sub_prin_comps, aes(x = PC1,
-                               y = PC2,
-                               color = group)) +
-        geom_point() +
+                                           y = PC2,
+                                           color = group)) +
+        geom_point(size = 3) +
         ggtitle(timepoint) +
         ggrepel::geom_text_repel(aes(label = samples %>%
                                             str_replace_all("_", " ") %>%
@@ -1096,8 +1099,9 @@ pheatmap::pheatmap(.,
                                                         invert = TRUE)
                                                    ]),
                    annotation_names_col = FALSE,
-                   fontsize = 5,
-                   fontsize_number = 5)
+                   fontsize = 8,
+                   fontsize_number = 5,
+                   annotation_legend = FALSE)
 
 png("output/figures/heatmap_noMO.png",
     width = 2000,
