@@ -869,6 +869,105 @@ gene_expr %>%
         facet_wrap(~ exp_log2)
 ```
 
+## Ingenuity Pathway Analysis
+
+I used the output from EdgeR to run IPA.
+I output the canonical pathways and upstream regulators for each comparison
+
+### Plots
+
+```{r ipaPlots, eval=TRUE}
+data_set <- read_tsv(list.files(path = "output/ipa",
+                                 pattern = "canon.+her338.+txt",
+                                 full.names = TRUE),
+                      id = "comparison",
+                      show_col_types = FALSE) %>%
+  mutate(comparison = str_remove(comparison, ".+pathways_") %>%
+            str_remove("_.+")) %>%
+  filter(10^(-1 * `-log(p-value)`) <= 0.05)
+
+path_order <- data_set %>%
+    select(-Ratio, -`z-score`, -Molecules) %>%
+    rename(pval = `-log(p-value)`) %>%
+    pivot_wider(names_from = comparison,
+                values_from = pval) %>%
+    mutate(row_nas = rowSums(is.na(.))) %>%
+    rowwise() %>%
+    mutate(na_pos = paste(str_replace_all(`24h`, "[0-9.]+", "x"),
+                          str_replace_all(`72h`, "[0-9.]+", "x")) %>%
+           str_replace("x NA", "24h") %>%
+           str_replace("NA x", "72h") %>%
+           str_replace(". .", "Both")) %>%
+    arrange(row_nas, `24h` * -1, `72h` * -1)
+
+data_set_2 <- data_set %>%
+    mutate(`Ingenuity Canonical Pathways` = fct_relevel(`Ingenuity Canonical Pathways`,
+                                                      path_order$`Ingenuity Canonical Pathways`)) %>%
+    full_join(path_order %>%
+                    select(`Ingenuity Canonical Pathways`, na_pos))
+
+kept_paths <- data_set_2 %>%
+    arrange(`-log(p-value)` * -1) %>%
+    select(-comparison, -`z-score`, -Molecules, -Ratio, -`-log(p-value)`) %>%
+    group_by(na_pos) %>%
+    distinct() %>%
+    slice_head(n = 10) %>%
+    pull(`Ingenuity Canonical Pathways`)
+
+plot_name <- data_set_2 %>%
+    filter(`Ingenuity Canonical Pathways` %in% kept_paths) %>%
+    mutate(`Ingenuity Canonical Pathways` = fct_relevel(`Ingenuity Canonical Pathways`,
+                                                      path_order$`Ingenuity Canonical Pathways`),
+           new_label = str_wrap(`Ingenuity Canonical Pathways`, width = 40)) %>%
+    arrange(`Ingenuity Canonical Pathways`) %>%
+    mutate(row_order = 1:n(),
+           new_label = fct_reorder(new_label, row_order, min)) %>%
+    ggplot(aes(x = comparison,
+               y = new_label,
+               fill = `-log(p-value)`)) +
+        geom_tile() +
+        geom_text(aes(label = `-log(p-value)`),
+                  size = 3,
+                  color = "black") +
+        scale_fill_gradient(low = "#fff7bc",
+                            high = "#d95f0e") +
+        labs(x = "",
+             y = "") +
+        scale_y_discrete(limits = rev) +
+        theme(axis.text = element_text(face = "bold"))
+
+ggsave("output/figures/canonical_pathways_p-value_top10.png",
+       plot = plot_name,
+       width = 6,
+       height = 12)
+
+plot_name <- data_set_2 %>%
+    mutate(`Ingenuity Canonical Pathways` = fct_relevel(`Ingenuity Canonical Pathways`,
+                                                      path_order$`Ingenuity Canonical Pathways`),
+           new_label = str_wrap(`Ingenuity Canonical Pathways`, width = 40)) %>%
+    arrange(`Ingenuity Canonical Pathways`) %>%
+    mutate(row_order = 1:n(),
+           new_label = fct_reorder(new_label, row_order, min)) %>%
+    ggplot(aes(x = comparison,
+               y = new_label,
+               fill = `-log(p-value)`)) +
+        geom_tile() +
+        geom_text(aes(label = `-log(p-value)`),
+                  size = 3,
+                  color = "black") +
+        scale_fill_gradient(low = "#fff7bc",
+                            high = "#d95f0e") +
+        labs(x = "",
+             y = "") +
+        scale_y_discrete(limits = rev) +
+        theme(axis.text = element_text(face="bold"))
+
+ggsave("output/figures/canonical_pathways_p-value.png",
+       plot = plot_name,
+       width = 6,
+       height = 20)
+```
+
 ## PCA analysis
 I also make heatmaps and assemble plots for the paper using grid.
 ```{r pca, dependson=c('edgeR', 'ercc', 'plotDECounts'), eval=TRUE}
@@ -1449,6 +1548,6 @@ done
 ```
 
 Session info
-```{r}
+```{r sessionInfo, cache=FALSE}
 sessionInfo()
 ```
