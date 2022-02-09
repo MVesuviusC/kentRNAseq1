@@ -338,13 +338,15 @@ reads_latw %>%
            `Genic Reads`) %>%
     rename(Sample_Name = Sample) %>%
     rename_with(~ str_replace(.x, "_", " ")) %>%
-    gt() %>%
-    fmt_number(columns = c("Sequenced Reads",
-                           "Uniquely Aligned Reads",
-                           "Genic Reads"),
-               decimals = 0,
-               sep_mark = ",") %>%
-    gtsave("output/figures/sampleReadCounts.png")
+    write_tsv("output/figures/sampleReadCounts.txt",
+              quote = "none")
+    # gt() %>%
+    # fmt_number(columns = c("Sequenced Reads",
+    #                        "Uniquely Aligned Reads",
+    #                        "Genic Reads"),
+    #            decimals = 0,
+    #            sep_mark = ",") %>%
+    # gtsave("output/figures/sampleReadCounts.png")
 
 ggplot(reads_latw, aes(x = Sample, y = Reads / 1000000, fill = Stage)) +
     geom_col(position = "dodge") +
@@ -1545,6 +1547,57 @@ do
     cp $dir/knownResults.html output/motif/homerOut/${nameStub}_knownResults.html
     cp $dir/homerResults.html output/motif/homerOut/${nameStub}_homerResults.html
 done
+```
+
+```{r gatherHomerText, eval=FALSE}
+### Known results
+read_tsv(list.files(path = "output/motif/homerOut",
+                    pattern = "knownResults.txt",
+                    recursive = TRUE,
+                    full.names = TRUE),
+         col_names = c("motif_name",
+                       "consensus",
+                       "p_value",
+                       "log_p_value",
+                       "benj",
+                       "num_target_seq_with_motif",
+                       "perc_target_seq_with_motif",
+                       "num_background_seq_with_motif",
+                       "perc_background_seq_with_motif"),
+         skip = 1,
+         id = "comparison",
+         show_col_types = FALSE) %>%
+    mutate(comparison = str_remove(comparison,
+                                    "output/motif/homerOut/") %>%
+           str_remove("/knownResults.txt")) %>%
+    filter(benj <= 0.05) %>%
+    mutate(percents = str_c(perc_target_seq_with_motif,
+                             "/",
+                             perc_background_seq_with_motif,
+                             "(", benj, ")")) %>%
+    select(comparison, motif_name, consensus, percents) %>%
+    filter(comparison == "her3_38aa_24hpf_WIK_24hpf" |
+           comparison == "her3_38aa_72hpf_WIK_72hpf") %>%
+    pivot_wider(id_cols = c(motif_name, consensus),
+                names_from = "comparison",
+                values_from = percents)
+
+```
+
+```{bash gatherHomerDenovo, dependson='runHomer', eval=TRUE}
+grep "^>" output/motif/homerOut/her3_38aa_*hpf_WIK_*hpf/homerResults/motif*.motif | \
+    grep -v "similar\|RV.motif" | \
+    cut -f 1,2,6 | \
+    perl -pe 's/.+homerOut\///' | \
+    perl -pe 's/\/homerResults\//\t/' | \
+    perl -pe 's/\.motif.+?\t/\t/' | \
+    perl -pe 's/,BestGuess:/\t/' | \
+    perl -pe 's/\tT:/\t/' | \
+    perl -pe 's/,B:/\t/' | \
+    perl -pe 's/,P:/\t/' | \
+    perl -pe 's/\t[0-9]+-/\t/' \
+        > output/motif/homerOut/deNovoMotifList.txt
+# Cleaned up the table by hand
 ```
 
 Session info
