@@ -16,37 +16,48 @@ knitr::opts_chunk$set(echo = TRUE,
                       bootstrap.show.warning = FALSE)
 ```
 
-# RNAseq analysis of Her3 knockout and morpholino zebrafish samples
+# RNAseq analysis of her3 knockout and morpholino zebrafish samples
 
 ## Goals:
 
-This experiment aims to characterize the effects of Her3 knockout in zebrafish.
+This experiment aims to characterize the effects of her3 knockout in zebrafish.
 
-To do this, we employ a Her3 mutant created by crispr modification of the Her3 sequence that leads to a truncated 38 amino acid protein.
+To do this, we employ a her3 mutant created by CRISPER/Cas9 modification of the
+her3 sequence that leads to a truncated 38 amino acid protein.
 
-We also are using a morpholino targeted to the Her3 mRNA to prevent protein translation.
+We also are using a morpholino targeted to the her3 mRNA to prevent protein
+translation.
 
-We are testing these effects at both 24 hours and 72 hours post fertilization.
+We are testing these effects at both 24 hours and 72 hours post fertilization
+(hpf).
 
 ## Samples:
 
-There are six groups with samples collected at either 24hpf or 72hpf. RNA from the entire embryo was collected for all samples.
+There are six groups with samples collected at either 24hpf or 72hpf. RNA from
+the entire embryo was collected for all samples.
 
--   Control WIK 24hpf samples (n = 3)
+-   Control Wildtype WIK 24hpf samples (n = 3)
 -   Her3 38aa knockout 24hpf samples (n = 3)
 -   Her3 morpholino 24hpf samples (n = 3)
 -   Her3 control mismatch morpholino 24hpf samples (n = 3)
--   Control WIK 72hpf samples (n = 3)
+-   Control Wildtype WIK 72hpf samples (n = 3)
 -   Her3 38aa knockout 72hpf samples (n = 3)
 
 ERCC spike-in:
-24hpf WIK samples had ERCC 1, and all the others had ERCC 2 spike-in controls added to facilitate evaluation of dynamic range and sensitivity of differential expression analysis.
+24hpf WIK samples had ERCC 1, and all the others had ERCC 2 spike-in controls
+added to facilitate evaluation of dynamic range and sensitivity of differential
+expression analysis.
 
-RNAseq data were generated on an Illumina NovaSeq to create 151bp paired-end reads.
+RNAseq data were generated on an Illumina NovaSeq to create 151bp paired-end
+reads.
 
 ## Approach
 
-To analyze these samples, we aligned with HiSat2 and counted the number of reads mapping to each gene using featureCounts. We used EdgeR to test for differential expression between the groups. For motif analysis we used Homer. For most statistical analyses and plotting, we used R and and ggplot2. To do pathway analysis we used the Inginuity Pathway Analysis software.
+To analyze these samples, we aligned with HiSat2 and counted the number of reads
+mapping to each gene using featureCounts. We used EdgeR to test for differential
+expression between the groups. For motif analysis we used Homer. For most
+statistical analyses and plotting, we used R and ggplot2. To do pathway
+analysis we used the Ingenuity Pathway Analysis software.
 
 # Workflow
 
@@ -1600,7 +1611,7 @@ grep "^>" output/motif/homerOut/her3_38aa_*hpf_WIK_*hpf/homerResults/motif*.moti
 # Cleaned up the table by hand
 ```
 
-Session info
+# Session info
 ```{r sessionInfo, cache=FALSE}
 sessionInfo()
 ```
