@@ -1176,6 +1176,53 @@ gridExtra::grid.arrange(pca_all,
 dev.off()
 
 
+### PCA of all samples except the Morpholino samples
+
+
+pca <- prcomp(gene_counts[!grepl("-MO", rownames(gene_counts)), ])
+
+variance <- (pca$sdev)^2 / sum(pca$sdev^2) * 100
+names(variance) <- colnames(pca$x)
+
+plot(variance)
+
+prin_comps <- pca$x %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "samples") %>%
+    as_tibble() %>%
+    left_join(group_table) %>%
+    mutate(group = droplevels(group))
+
+plot_colors <- scales::brewer_pal(type = "qual", palette = "Set2")(4)
+names(plot_colors) <- levels(prin_comps$group)
+
+pca_no_mo <-
+    ggplot(prin_comps, aes(x = PC1,
+                           y = PC2,
+                           color = group)) +
+    geom_point(size = 3) +
+    ggtitle("PCA Plot for all Samples Except Morpholino") +
+    ggrepel::geom_text_repel(aes(label = samples %>%
+                                    str_replace_all("_", " ") %>%
+                                    str_replace("her3", "Her3")),
+                             size = 3) +
+    xlab(paste("PC1 (",
+               round(variance[1], 1),
+               "%)",
+               sep = "")) +
+    ylab(paste("PC2 (",
+               round(variance[2], 1),
+               "%)",
+               sep = "")) +
+    scale_color_manual(values = plot_colors,
+                       name = "") +
+    theme(legend.position = c(0.91, 0.9),
+          legend.text = element_text(size = 6))
+
+ggsave("output/figures/PCA_no_mo.png",
+       width = 8,
+       height = 8)
+
 #### Heatmap of all samples except Morpholino
 
 group_df <- data.frame(Group = rownames(gene_counts) %>%
